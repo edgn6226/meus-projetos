@@ -1,0 +1,90 @@
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#include "DHT.h"
+
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+//A5 SLD
+//A4 SCL 
+
+#define DHTPIN A1
+#define DHTTYPE DHT11
+DHT dht(DHTPIN, DHTTYPE);
+
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+
+int mq135Pin = A0;
+int sensorValue = 0;
+int qualidadeAr = 0;
+bool mostraQualidade = true;
+
+void setup() {
+  Serial.begin(9600);
+
+  dht.begin(); 
+
+  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+    Serial.println(F("Display não encontrado!"));
+    for (;;);
+  }
+
+  display.clearDisplay();
+  display.setTextColor(SSD1306_WHITE);
+  display.setTextSize(2);
+}
+
+void loop() {
+  // --- Leitura do MQ-135 ---
+  sensorValue = analogRead(mq135Pin);
+  qualidadeAr = map(sensorValue, 300, 1023, 100, 0);
+  qualidadeAr = constrain(qualidadeAr, 0, 100);
+
+  // --- Leitura do DHT11 ---
+  float h = dht.readHumidity();
+  float t = dht.readTemperature();
+
+  display.clearDisplay();
+
+  if (isnan(t) || isnan(h)) {
+    Serial.println("Erro ao ler o sensor DHT11!");
+  } else {
+    if (mostraQualidade) {
+      // --- Tela de Qualidade do Ar ---
+      display.setTextSize(2);
+      display.setCursor(0, 0);
+      display.print("Qualidade:");
+
+      display.setTextSize(3);
+      display.setCursor(0, 35);
+      Serial.println(qualidadeAr);
+      if (qualidadeAr > 80) {
+        display.println("EXCELENTE");
+      } else if (qualidadeAr > 60) {
+        display.println("BOA");
+      } else if (qualidadeAr > 40) {
+        display.println("REGULAR");
+      } else if (qualidadeAr > 20) {
+        display.println("RUIM");
+      } else {
+        display.println("MT RUIM");
+      }
+    } else {
+      // --- Tela de Temperatura ---
+      display.setTextSize(2);
+      display.setCursor(0, 0);
+      display.print("Temperatura:");
+
+      display.setTextSize(3);
+      display.setCursor(0, 35);
+      display.print(t, 1);  // uma casa decimal
+      display.print("C");
+      Serial.println(t);
+    }
+
+    display.display();
+    delay(2000);
+
+    mostraQualidade = !mostraQualidade;  // alterna telas
+  }
+}
